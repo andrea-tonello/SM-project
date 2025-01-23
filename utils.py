@@ -66,7 +66,8 @@ def accuracy_selection(X, y, threshold):
       y_pred = log_reg_sm.predict(X_train_const)
       accuracy = accuracy_score(y, np.round(y_pred))
       accuracies.append(accuracy)
-    
+      #print(accuracies)
+
     if max(accuracies) - best_accuracy > threshold:
       best_feature = initial_features[accuracies.index(max(accuracies))]
       selected_features.append(best_feature)
