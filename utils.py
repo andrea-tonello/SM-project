@@ -98,8 +98,8 @@ def logistic_regression(
   summary_frame["Coef."] = summary_frame["Coef."].apply(lambda x: f"{x:.8f}")  # Format coefficients
 
   # Predictions
-  y_pred = log_reg.predict(X_test_const)
-  y_pred = np.round(y_pred)
+  y_pred_prob = log_reg.predict(X_test_const)
+  y_pred = np.round(y_pred_prob)
 
   # Evaluate the model
   accuracy = accuracy_score(y_test, y_pred)
@@ -126,7 +126,7 @@ def logistic_regression(
 
   if verbose:
     print(summary_frame)
-  return log_reg, index_info
+  return log_reg, index_info, y_pred_prob
 
 def get_vif(data, features):
   features_const = sm.add_constant(data[features])
