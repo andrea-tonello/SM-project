@@ -1,5 +1,9 @@
 from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix
 from statsmodels.stats.outliers_influence import variance_inflation_factor
+from sklearn.model_selection import StratifiedKFold
+from sklearn.linear_model import LogisticRegression
+from tqdm import tqdm
+from matplotlib import pyplot as plt
 import pandas as pd
 import statsmodels.api as sm
 import numpy as np
@@ -118,7 +122,6 @@ def logistic_regression(
       "specificity": specificity,
       "sensitivity": sensitivity,
       "f1": f1,
-      # "conf_matrix": conf_matrix,
       "auc": auc
     },
     "summary": summary_frame,
@@ -135,3 +138,128 @@ def get_vif(data, features):
   vif_data["VIF"] = [variance_inflation_factor(features_const.values, i) for i in range(features_const.shape[1])]
   return vif_data
 
+def threshold_estimation(X, y, selected_features):
+  # Initialize StratifiedKFold
+  kf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+  # Initialize lists to store results
+  thresholds = np.arange(0.0, 1.1, 0.1)
+
+  sensitivity_array = []
+  specificity_array = []
+  accuracy_array = []
+  aic_array = []
+  bic_array = []
+  # Perform cross-validation
+  for train_index, test_index in tqdm(kf.split(X[selected_features], y)):
+      X_train, X_test = X[selected_features].iloc[train_index], X[selected_features].iloc[test_index]
+      y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+
+      X_train = sm.add_constant(X_train)
+      X_test = sm.add_constant(X_test)
+
+      # Fit the logistic regression model
+      log_reg = sm.Logit(y_train, X_train).fit(disp=0)
+
+      sensitivity_list = []
+      specificity_list = []
+      accuracy_list = []
+
+      # Predict probabilities
+      y_prob = log_reg.predict(X_test)
+      
+      # Calculate sensitivity and specificity for each threshold
+      for threshold in thresholds:
+          y_pred = (y_prob >= threshold).astype(int)
+          tp = np.sum((y_test == 1) & (y_pred == 1))
+          tn = np.sum((y_test == 0) & (y_pred == 0))
+          fp = np.sum((y_test == 0) & (y_pred == 1))
+          fn = np.sum((y_test == 1) & (y_pred == 0))
+
+          accuracy = accuracy_score(y_test, np.round(y_pred))
+          
+          sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0
+          specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+          
+          sensitivity_list.append(sensitivity)
+          specificity_list.append(specificity)
+          accuracy_list.append(accuracy)
+
+      aic_value = log_reg.aic
+      bic_value = log_reg.bic
+
+      # Convert lists to numpy arrays for easier manipulation
+      sensitivity_array.append(sensitivity_list)
+      specificity_array.append(specificity_list)
+      accuracy_array.append(accuracy_list)
+      aic_array.append(aic_value)
+      bic_array.append(bic_value)
+
+
+  sensitivity_array = np.array(sensitivity_array)
+  specificity_array = np.array(specificity_array)
+  accuracy_array = np.array(accuracy_array)
+  aic_array = np.array(aic_array)
+  bic_array = np.array(bic_array)
+
+  sensitivity_mean = np.array(sensitivity_array).mean(axis=0)
+  specificity_mean = np.array(specificity_array).mean(axis=0)
+  accuracy_mean = np.array(accuracy_array).mean(axis=0)
+
+  sensitivity_std = np.array(sensitivity_array).std(axis=0)
+  specificity_std = np.array(specificity_array).std(axis=0)
+  accuracy_std = np.array(accuracy_array).std(axis=0)
+
+  sensitivity = {
+    "mean": sensitivity_mean,
+    "std": sensitivity_std
+  }
+  specificity = {
+    "mean": specificity_mean,
+    "std": specificity_std
+  }
+  accuracy = {
+    "mean": accuracy_mean,
+    "std": accuracy_std
+  }
+
+  return thresholds, sensitivity, specificity, accuracy, aic_array, bic_array
+
+def thresholds_plotter(thresholds, sensitivity, specificity, accuracy):
+  sensitivity_mean = sensitivity["mean"]
+  specificity_mean = specificity["mean"]
+  accuracy_mean = accuracy["mean"]
+  sensitivity_std = sensitivity["std"]
+  specificity_std = specificity["std"]
+  accuracy_std = accuracy["std"]
+  # Create subplots
+  fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 6))
+
+  # Plot sensitivity, specificity, and accuracy
+  ax1.plot(thresholds, sensitivity_mean, label='Sensitivity')
+  ax1.plot(thresholds, specificity_mean, label='Specificity')
+  ax1.plot(thresholds, accuracy_mean, label='Accuracy')
+  ax1.fill_between(thresholds, sensitivity_mean - sensitivity_std, sensitivity_mean + sensitivity_std, color='blue', alpha=0.2, label='Standard Deviation')
+  ax1.fill_between(thresholds, specificity_mean - specificity_std, specificity_mean + specificity_std, color='orange', alpha=0.2, label='Standard Deviation')
+  ax1.fill_between(thresholds, accuracy_mean - accuracy_std, accuracy_mean + accuracy_std, color='green', alpha=0.2, label='Standard Deviation')
+
+  ax1.set_xlabel('Threshold')
+  ax1.set_ylabel('Score')
+  ax1.set_title('Sensitivity, Specificity, and Accuracy vs. Threshold')
+  ax1.legend()
+  ax1.grid(True)
+
+  # Plot ROC curve based on sensitivity and specificity
+  ax2.plot(1 - specificity_mean, sensitivity_mean, color='darkorange', lw=2, label='ROC curve')
+  ax2.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+  ax2.fill_between(1 - specificity_mean, sensitivity_mean - sensitivity_std, sensitivity_mean + sensitivity_std, color='darkorange', alpha=0.3, label='Standard Deviation')
+  ax2.set_xlim([0.0, 1.0])
+  ax2.set_ylim([0.0, 1.05])
+  ax2.set_xlabel('False Positive Rate (1 - Specificity)')
+  ax2.set_ylabel('True Positive Rate (Sensitivity)')
+  ax2.set_title('Receiver Operating Characteristic (ROC) Curve')
+  ax2.legend(loc="lower right")
+  ax2.grid(True)
+
+  plt.tight_layout()
+  plt.show()
