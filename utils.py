@@ -148,6 +148,7 @@ def threshold_estimation(X, y, selected_features):
   sensitivity_array = []
   specificity_array = []
   accuracy_array = []
+  df_array = []
   aic_array = []
   bic_array = []
   # Perform cross-validation
@@ -187,6 +188,8 @@ def threshold_estimation(X, y, selected_features):
 
       aic_value = log_reg.aic
       bic_value = log_reg.bic
+      df_model = log_reg.df_model
+      
 
       # Convert lists to numpy arrays for easier manipulation
       sensitivity_array.append(sensitivity_list)
@@ -194,6 +197,8 @@ def threshold_estimation(X, y, selected_features):
       accuracy_array.append(accuracy_list)
       aic_array.append(aic_value)
       bic_array.append(bic_value)
+      df_array.append(df_model)
+      df_array.append(df_model)
 
 
   sensitivity_array = np.array(sensitivity_array)
@@ -201,7 +206,8 @@ def threshold_estimation(X, y, selected_features):
   accuracy_array = np.array(accuracy_array)
   aic_array = np.array(aic_array)
   bic_array = np.array(bic_array)
-
+  df_array = np.array(df_array)
+  
   sensitivity_mean = np.array(sensitivity_array).mean(axis=0)
   specificity_mean = np.array(specificity_array).mean(axis=0)
   accuracy_mean = np.array(accuracy_array).mean(axis=0)
@@ -223,7 +229,7 @@ def threshold_estimation(X, y, selected_features):
     "std": accuracy_std
   }
 
-  return thresholds, sensitivity, specificity, accuracy, aic_array, bic_array
+  return thresholds, sensitivity, specificity, accuracy, aic_array, bic_array, df_array
 
 def thresholds_plotter(thresholds, sensitivity, specificity, accuracy):
   sensitivity_mean = sensitivity["mean"]
