@@ -1,12 +1,12 @@
+import numpy as np
+import pandas as pd
+from matplotlib import pyplot as plt
+from tqdm import tqdm
 from sklearn.metrics import roc_auc_score, accuracy_score, confusion_matrix
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.model_selection import StratifiedKFold
 from sklearn.linear_model import LogisticRegression
-from tqdm import tqdm
-from matplotlib import pyplot as plt
-import pandas as pd
 import statsmodels.api as sm
-import numpy as np
 
 def pvalue_selection(X, y):
   initial_features = X.columns.tolist()
@@ -87,8 +87,8 @@ def get_vif(data, features):
   features_const = sm.add_constant(data[features])
   vif_data = pd.DataFrame()
   vif_data["Feature"] = features_const.columns
-  vif_data["VIF"] = [variance_inflation_factor(features_const.values, i) for i in range(features_const.shape[1])]
-  return vif_data
+  vif_data["VIF"] = [f"{variance_inflation_factor(features_const.values, i):.2f}" for i in range(features_const.shape[1])]
+  return vif_data.T
 
 def threshold_estimation(X, y, selected_features):
   # Initialize StratifiedKFold
