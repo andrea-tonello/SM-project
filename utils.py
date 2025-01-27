@@ -82,54 +82,6 @@ def accuracy_selection(X, y, threshold):
 
   return selected_features
 
-def logistic_regression(
-  X_train,
-  X_test,
-  y_train,
-  y_test,
-  features,
-  verbose=True, # prints the summary
-):
-  X_train_const = sm.add_constant(X_train[features])
-  X_test_const = sm.add_constant(X_test[features])
-
-  # Fit the logistic regression model
-  log_reg = sm.Logit(y_train, X_train_const).fit(disp=0)
-
-  # Extract p-values and coefficients with more decimals
-  summary_frame = log_reg.summary2().tables[1]  # Extract the coefficient table
-  summary_frame["P>|z|"] = summary_frame["P>|z|"].apply(lambda x: f"{x:.8f}")  # Format p-values
-  summary_frame["Coef."] = summary_frame["Coef."].apply(lambda x: f"{x:.8f}")  # Format coefficients
-
-  # Predictions
-  y_pred_prob = log_reg.predict(X_test_const)
-  y_pred = np.round(y_pred_prob)
-
-  # Evaluate the model
-  accuracy = accuracy_score(y_test, y_pred)
-  conf_matrix = confusion_matrix(y_test, y_pred)
-  tn, fp, fn, tp = conf_matrix.ravel()
-  precision = tp / (tp + fp)
-  specificity = tn / (tn + fp)
-  sensitivity = tp / (tp + fn)
-  f1 = 2 * (precision * sensitivity) / (precision + sensitivity)
-  auc = roc_auc_score(y_test, log_reg.predict(X_test_const))
-
-  index_info = {
-    "metrics": {
-      "accuracy": accuracy,
-      "precision": precision,
-      "specificity": specificity,
-      "sensitivity": sensitivity,
-      "f1": f1,
-      "auc": auc
-    },
-    "summary": summary_frame,
-  }
-
-  if verbose:
-    print(summary_frame)
-  return log_reg, index_info, y_pred_prob
 
 def get_vif(data, features):
   features_const = sm.add_constant(data[features])
